@@ -1,6 +1,6 @@
-# Situs Pribadi — Spesifikasi Lengkap (v2.1)
+# Situs Pribadi — Spesifikasi Lengkap (v2.2)
 
-Satu file, mandiri. Menggantikan `blog.md` (v1), `spec-v2.md`, dan `spec-v2.1-patch.md`. Tidak ada rujukan ke dokumen lain: agent cukup membaca file ini lalu membangun situs dari nol.
+Satu file spesifikasi, mandiri. Menggantikan `blog.md` (v1), `spec-v2.md`, dan `spec-v2.1-patch.md`. Tidak ada rujukan spesifikasi lain: agent cukup membaca file ini lalu membangun situs dari nol. Urutan pengerjaan dan bukti kelulusan tiap tahap ada di `PLAN.md`; kalau ada konflik, perilaku produk dan aturan teknis di file ini yang berlaku.
 
 Konteks: pemilik satu orang (mahasiswa), konten bahasa Indonesia. Situs lama diabaikan seluruhnya (desain, warna, font, layout). Portfolio jadi utama, blog jadi pendukung, dan dokumen ini **ikut mengatur desain**, karena di versi lama justru bagian itu yang bikin hasilnya generik.
 
@@ -20,6 +20,8 @@ Baca seluruh dokumen sebelum menulis kode. Lalu bangun **berurutan. Jangan lompa
 8. Auth + admin CRUD + upload (§8).
 9. Gerak (§9.7), lalu SEO, performa, a11y (§12). Gerak ditambahkan **setelah** semua halaman jadi dan sudah terbaca rapi tanpa animasi.
 10. Lewati §10 sekali lagi, lalu checklist §14.
+
+Kerjakan dan verifikasi per milestone di `PLAN.md`. Jangan menunda semua pengujian sampai tahap terakhir. Setiap milestone harus tetap meninggalkan branch dalam keadaan bisa di-build sebelum lanjut.
 
 Selesai berarti: `npm run typecheck`, `npm run lint`, dan `npm run build` lolos, §10 sudah dicek, dan semua kotak di §14 tercentang.
 
@@ -60,10 +62,7 @@ export const siteConfig = {
   name: "Raihan Daris Ramadhan",
   description:
     "Portfolio dan blog pribadi Raihan Daris Ramadhan, mahasiswa Teknik Informatika di ITPLN.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  email: "ISI_DULU",
-  github: "ISI_DULU",    // URL profil
-  linkedin: "ISI_DULU",  // URL profil
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://raihandaris.web.id",
 };
 
 export const positioning = {
@@ -79,7 +78,7 @@ export const positioning = {
 export const courses: Course[] = [];
 ```
 
-Semua nilai `ISI_DULU` diisi manusia. Agent tidak boleh mengarang isinya. Nilai yang sudah terisi (nama, deskripsi, tiga kalimat positioning) adalah draf dari pemilik; agent tidak mengubahnya. `courses` sengaja kosong dulu; agent tidak mengisinya. Yang masih `ISI_DULU` (email, GitHub, LinkedIn) tetap harus diisi pemilik sebelum build dimulai.
+Nilai nama, deskripsi, domain, dan tiga kalimat positioning sudah disetujui sebagai draf awal. Agent tidak mengubah faktanya. `courses` sengaja kosong saat peluncuran awal; agent tidak mengisinya. Email publik, GitHub, dan LinkedIn disimpan di tabel singleton `site_settings` dan dapat diubah dari `/admin/settings`; ketiganya boleh kosong dan tautan yang kosong tidak dirender.
 
 Cek kalimatnya: kalau bisa dipakai orang lain tanpa diubah, berarti terlalu umum. "Passionate about building scalable web applications" bisa dipakai 400 ribu orang. Buang.
 
@@ -244,6 +243,7 @@ Post {
   project_id: uuid | null               // FK -> projects.id ON DELETE SET NULL
   published: boolean NOT NULL DEFAULT false
   published_at: timestamptz | null      // null = fallback ke created_at saat tampil
+  sort_at: timestamptz GENERATED        // coalesce(published_at, created_at), hanya untuk query
   cover_image_url: text | null          // otomatis dari gambar pertama, bukan input manual
   views: int NOT NULL DEFAULT 0         // internal, tidak pernah tampil ke publik
   created_at, updated_at                // updated_at via trigger set_updated_at()
@@ -257,6 +257,8 @@ Constraint:
 - `posts_course_week_uniq`: partial unique index pada `(course_slug, week_number)` `WHERE course_slug IS NOT NULL AND week_number IS NOT NULL`. Artinya: untuk post bermatkul, satu minggu hanya satu post per matkul. Post tanpa matkul tidak terkena batas ini. Kalau kelak mau dua tulisan dalam seminggu, hapus index ini.
 
 `project_id` independen dari `course_slug`/`week_number`: post boleh punya matkul, proyek, keduanya, atau tidak satu pun. Menghapus proyek tidak menghapus post-nya; `project_id` jadi null.
+
+`sort_at` bukan input form dan tidak ditulis aplikasi. Kolom generated ini membuat aturan `published_at ?? created_at` dapat diurutkan langsung oleh Postgres/PostgREST tanpa mengambil semua row lalu mengurutkannya di JavaScript.
 
 ### 5.2 `post_files` (lampiran post)
 
@@ -274,6 +276,8 @@ PostFile {
 ```
 
 Tampil diurut `sort_order ASC`, lalu `created_at ASC`.
+
+Database menjamin maksimal satu PDF per post lewat partial unique index `post_files_one_pdf_per_post`. Pengecekan Server Action tetap ada untuk pesan error yang ramah; index adalah perlindungan terhadap request bersamaan.
 
 ### 5.3 `projects`
 
@@ -325,6 +329,20 @@ Course { slug: string; title: string; description?: string; semester?: number; y
 
 Hanya `slug` dan `title` yang wajib. Menambah matkul = tambah satu entri di `courses` (`lib/site.ts`), tanpa migrasi DB. `courses` **boleh kosong** (kondisi awal): form admin menyembunyikan select matkul dan input minggu, `/writing/kuliah/[courseSlug]` selalu 404, dan tidak ada tautan matkul di mana pun. Untuk menguji halaman matkul saat development, tambah satu entri sementara dan hapus sebelum selesai.
 
+### 5.6 `site_settings` (singleton)
+
+```ts
+SiteSettings {
+  id: 1
+  public_email: text | null
+  github_url: text | null
+  linkedin_url: text | null
+  updated_at: timestamptz
+}
+```
+
+Hanya ada satu row dengan `id = 1`, dibuat oleh `setup.sql`. Publik boleh membaca row ini karena isinya memang informasi kontak publik; anon/authenticated tidak boleh menulis. Admin mengubahnya lewat Server Action dengan `service_role`. Kalau query gagal atau field kosong, tautan terkait tidak dirender. Pengaturan identitas inti dan positioning tetap di kode supaya situs masih punya identitas saat Supabase tidak tersedia.
+
 ---
 
 ## 6. Database: setup.sql, RLS, Storage, RPC
@@ -368,6 +386,19 @@ create trigger projects_set_updated_at
   before update on projects
   for each row execute function set_updated_at();
 
+-- public contact settings (singleton)
+create table site_settings (
+  id smallint primary key default 1 check (id = 1),
+  public_email text,
+  github_url text,
+  linkedin_url text,
+  updated_at timestamptz not null default now()
+);
+insert into site_settings (id) values (1);
+create trigger site_settings_set_updated_at
+  before update on site_settings
+  for each row execute function set_updated_at();
+
 -- posts
 create table posts (
   id uuid primary key default gen_random_uuid(),
@@ -384,6 +415,7 @@ create table posts (
   cover_image_url text,
   views int not null default 0,
   created_at timestamptz not null default now(),
+  sort_at timestamptz generated always as (coalesce(published_at, created_at)) stored,
   updated_at timestamptz not null default now(),
   constraint posts_week_range
     check (week_number is null or week_number between 1 and 16),
@@ -411,6 +443,8 @@ create table post_files (
   created_at timestamptz not null default now()
 );
 create index post_files_post_id_idx on post_files (post_id);
+create unique index post_files_one_pdf_per_post
+  on post_files (post_id) where file_type = 'pdf';
 
 -- project_images
 create table project_images (
@@ -430,10 +464,12 @@ alter table projects enable row level security;
 alter table posts enable row level security;
 alter table post_files enable row level security;
 alter table project_images enable row level security;
+alter table site_settings enable row level security;
 
 revoke insert, update, delete on projects, posts, post_files, project_images
   from anon, authenticated;
-grant select on projects, posts, post_files, project_images to anon, authenticated;
+revoke insert, update, delete on site_settings from anon, authenticated;
+grant select on projects, posts, post_files, project_images, site_settings to anon, authenticated;
 
 create policy projects_read_published on projects
   for select using (published = true);
@@ -450,6 +486,9 @@ create policy project_images_read_published on project_images
   for select using (
     exists (select 1 from projects p where p.id = project_images.project_id and p.published)
   );
+
+create policy site_settings_read_public on site_settings
+  for select using (id = 1);
 
 -- Storage: satu bucket, publik untuk baca
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -479,7 +518,7 @@ grant execute on function increment_post_views(uuid) to service_role;
 Aturan yang dirangkum dari SQL di atas:
 
 - Bucket `note-files`: `public: true`, batas 10MB, mime hanya `image/jpeg`, `image/png`, `image/webp`, `application/pdf`. Path post: `{post_id}/{timestamp}-{sanitized_filename}`. Path gambar proyek: `projects/{project_id}/{timestamp}-{sanitized_filename}`.
-- Tidak ada RPC untuk likes. `increment_post_views` hasilnya hanya dipakai di dashboard admin.
+- Tidak ada RPC untuk likes. `increment_post_views` hasilnya hanya dipakai di dashboard admin. Nilainya adalah hit perkiraan, bukan unique visitors atau analytics resmi.
 - Upload lewat signed URL yang dibuat server (§8.3) tidak butuh policy Storage tambahan.
 
 ### 6.1 Seed untuk development
@@ -505,7 +544,7 @@ Jangan jalankan `setup.sql` di atas. Pakai Lampiran A.
 | `/` | §1 + 3 proyek teratas + 3 tulisan terbaru + kontak (blok berid `kontak`) |
 | `/projects` | Semua proyek published, urut `sort_order ASC, created_at DESC` |
 | `/projects/[slug]` | Detail proyek. 404 kalau tidak ada / belum published |
-| `/writing` | Semua post published, terbaru dulu (`published_at ?? created_at` DESC). Filter opsional `?topic=` dan `?course=` |
+| `/writing` | Semua post published, terbaru dulu (`sort_at DESC`). Filter opsional `?topic=` dan `?course=` |
 | `/writing/[slug]` | Detail post. 404 kalau tidak ada / belum published |
 | `/writing/kuliah/[courseSlug]` | Satu matkul. 404 kalau slug tidak ada di `courses`. Post urut `week_number ASC` |
 
@@ -514,7 +553,7 @@ Aturan:
 - Matkul dan minggu adalah metadata dan filter, bukan jalur wajib menuju tulisan. Route tulisan selalu dua segmen (`/writing/[slug]`), tidak tiga.
 - Di halaman satu matkul, minggu naik (1 → 16) karena itu alur belajar. Di `/writing` umum, terbaru duluan. Header halaman matkul: judul, lalu deskripsi dan `Semester {semester}, {year}` sebagai metadata kecil, masing-masing hanya kalau terisi.
 - `?topic=` memfilter `topics @> {nilai}`. `?course=` memfilter `course_slug`. Tidak ada search box dan tidak ada dropdown minggu: untuk daftar berisi 1–5 item itu fitur kosong. Kalau satu matkul nanti punya lebih dari 8 post, baru pertimbangkan lagi.
-- Detail post: `getPublishedPostBySlug`; pisahkan `images` dan `pdf`; hitung reading time; generate metadata (§12); catat view sekali lewat komponen client kecil yang memanggil Server Action `incrementViewCount` saat mount (tanpa tampilan apa pun).
+- Detail post: `getPublishedPostBySlug`; pisahkan `images` dan `pdf`; hitung reading time; generate metadata (§12); catat satu hit per slug per browser session lewat komponen client kecil (tanpa tampilan apa pun). Komponen mengecek `sessionStorage` sebelum memanggil Server Action `incrementViewCount`; kegagalan pencatatan tidak ditampilkan dan tidak mengganggu halaman. Angka ini tetap perkiraan dan tidak dipakai sebagai ukuran unique visitors.
 - Detail proyek: `getPublishedProjectBySlug`, gambar proyek (`sort_order ASC`), post terkait (§9.5), aktivitas repo (§11).
 
 Redirect lama → baru sudah ada di `next.config.ts` (§3).
@@ -529,6 +568,7 @@ Redirect lama → baru sudah ada di `next.config.ts` (§3).
 | `/admin/writing/[id]/edit` | admin | Form edit + upload instan + reorder + hapus file |
 | `/admin/projects` | admin | List semua proyek (`sort_order ASC, created_at DESC`) |
 | `/admin/projects/new`, `/admin/projects/[id]/edit` | admin | Form create/edit (gambar proyek di halaman edit) |
+| `/admin/settings` | admin | Ubah email publik, URL GitHub, dan URL LinkedIn; field boleh kosong |
 | `/api/cron/keep-supabase-alive` | `Bearer CRON_SECRET` | Query ringan `select id from posts where published limit 1`; return `{ ok, checkedAt, durationMs, rowsSeen }` |
 
 Antarmuka admin fungsional: pakai token yang sama (§9.2), tanpa dekorasi, aksen `--rule`.
@@ -567,6 +607,8 @@ Project (`projectInputSchema`):
 - `repoUrl`, `demoUrl`: URL https yang valid, opsional.
 - `published`: default `false`. `sortOrder`: int, default 0.
 
+Settings (`siteSettingsSchema`): email publik opsional tetapi harus berupa email valid kalau diisi; GitHub dan LinkedIn opsional tetapi harus URL `https`. GitHub dibatasi ke host `github.com`, LinkedIn ke `linkedin.com` atau subdomainnya. String kosong disimpan sebagai `null`.
+
 ### 8.3 Upload (signed URL)
 
 File **tidak** lewat Server Action (boros memori, kena batas body, lambat). Alurnya:
@@ -574,6 +616,7 @@ File **tidak** lewat Server Action (boros memori, kena batas body, lambat). Alur
 1. Server Action `createUploadUrl(kind, parentId, fileName, mime, size)` → `requireAdmin` → validasi → `storage.from("note-files").createSignedUploadUrl(path)` → balikin `{ path, token }`.
 2. Browser upload langsung ke Supabase Storage: `uploadToSignedUrl(path, token, file)` lewat browser client.
 3. Server Action `registerUpload({ kind, parentId, path, fileName })` → `requireAdmin` → validasi → `getPublicUrl(path)` → INSERT row `post_files` / `project_images` dengan `sort_order` = max lama + 1 (mulai 0). Untuk `post_files`, hitung ulang `posts.cover_image_url`.
+4. Kalau langkah 3 gagal setelah objek berhasil diunggah, browser langsung memanggil Server Action `discardUpload(path)` sebagai kompensasi best-effort. Action ini memanggil `requireAdmin`, hanya menerima path dengan format bucket aplikasi, memastikan path belum tercatat di `post_files` maupun `project_images`, lalu menghapus objek tersebut. Path yang sudah terdaftar tidak boleh dihapus lewat action kompensasi ini.
 
 `kind` ∈ `post-image`, `post-pdf`, `project-image`.
 
@@ -581,11 +624,12 @@ Aturan:
 
 - Path dibuat server, bukan klien: post `{postId}/{timestamp}-{sanitized-name}`; gambar proyek `projects/{projectId}/{timestamp}-{sanitized-name}`. `registerUpload` menolak `path` yang tidak diawali prefix yang sesuai. Nama file disanitasi: lowercase, strip diakritik, karakter di luar `a-z0-9.-` → `-`.
 - Image harus `jpeg/png/webp`; PDF harus `application/pdf`; masing-masing ≤ 10MB. Gambar proyek hanya image.
-- Maks **1 PDF per post**, dicek di `createUploadUrl` dan `registerUpload`. Image boleh banyak.
+- Maks **1 PDF per post**, dicek di `createUploadUrl` dan `registerUpload`, lalu dijamin lagi oleh partial unique index (§6). Error `23505` dari index diterjemahkan menjadi pesan ramah. Image boleh banyak.
 - Batas 10MB dan `allowed_mime_types` di bucket (§6) **wajib tetap diset**, karena bucket yang menegakkannya di sisi Storage.
 - Cover post = URL image pertama (urut `sort_order ASC, created_at ASC`), bukan input manual. Proyek tidak punya kolom cover; OG image proyek diambil dari `project_images` pertama.
 - Form baru (`writing/new`, `projects/new`) **tidak punya input file**: simpan draft dulu, lalu redirect ke halaman edit tempat upload aktif (`createUploadUrl` butuh `parentId`).
 - Hapus file: hapus objek Storage dulu, lalu row, lalu hitung ulang cover post. Hapus post: hapus semua objek Storage post itu (pakai `file_path` dari row terkait) dulu, lalu row. Hapus proyek: hapus objek `projects/{id}/` dulu, lalu row. `ON DELETE CASCADE` hanya menghapus row, bukan file di Storage.
+- Kalau cleanup Storage gagal, jangan hapus row DB: tampilkan error admin dan biarkan operasi dapat dicoba ulang. `discardUpload` adalah best-effort karena kegagalan jaringan kedua tetap mungkin menyisakan objek; objek semacam ini dicatat lewat `console.error` terstruktur di server (kind, parent ID, path, tahap; tanpa token atau secret) untuk dibersihkan manual berdasarkan prefix parent.
 
 ### 8.4 Post
 
@@ -764,7 +808,7 @@ Detail proyek, urutan tetap:
 4. Screenshot pertama, lebar penuh kolom (tidak diperbesar melewati ukuran aslinya), dengan caption.
 5. **Hasil**, termasuk yang tidak berhasil. Bagian ini yang paling dipercaya orang.
 6. Screenshot sisanya.
-7. **Tulisan terkait**: daftar post published dengan `project_id` proyek ini, urut `published_at ?? created_at` naik (dibaca sebagai cerita proyek dari awal). Satu baris per post: judul, ringkasan satu baris, tanggal. Kalau tidak ada post terkait, bagian ini **tidak dirender** (bukan empty state).
+7. **Tulisan terkait**: daftar post published dengan `project_id` proyek ini, urut `sort_at ASC` (dibaca sebagai cerita proyek dari awal). Satu baris per post: judul, ringkasan satu baris, tanggal. Kalau tidak ada post terkait, bagian ini **tidak dirender** (bukan empty state).
 8. Stack, repo, demo, aktivitas repo (§11). Di bawah, bukan di atas.
 
 Bagian yang field-nya kosong (`problem`, `approach`, `outcome`, `role`, `period`) atau tidak punya gambar dilewati, tanpa placeholder.
@@ -939,7 +983,7 @@ Terakhir dikerjakan 12 September 2026
 - `generateMetadata()`:
   - Detail post: title, description = `summary`, OG `article` + `publishedTime` + author (`siteConfig.name`) + cover (`cover_image_url`).
   - Detail proyek: title, description = `summary`, OG image = `project_images` pertama.
-- Fokus keyboard terlihat jelas. Semua gambar punya alt: `caption` untuk gambar proyek; untuk gambar post dan kalau `caption` kosong, pakai fallback `{judul}, gambar {n}`. Kontras teks minimal 4.5:1 di kedua tema.
+- Fokus keyboard terlihat jelas. Semua gambar punya alt. Gambar proyek memakai `caption`; kalau kosong, pakai `{judul proyek}, gambar {n}`. Gambar post memakai `{judul tulisan}, gambar {n}` karena `post_files` tidak punya caption. Gambar dekoratif—kalau kelak ada—memakai alt kosong. Kontras teks minimal 4.5:1 di kedua tema.
 - Gerak (§9.7) tidak boleh merusak target di bawah: tambahan JS ≤ 30KB gzip di landing, elemen LCP tidak pernah disembunyikan oleh JS, hanya `transform` / `opacity` / `clip-path` yang dianimasikan, dan `/admin` tidak memuat library gerak.
 - Target Lighthouse: LCP < 2.0s di mobile 4G, CLS < 0.05.
 
@@ -954,7 +998,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 ADMIN_EMAIL=
 CRON_SECRET=          # acak min 16 char
 GITHUB_TOKEN=         # opsional, server-only (§11)
-# opsional: NEXT_PUBLIC_SITE_URL=https://domain-kamu (untuk share link absolut)
+NEXT_PUBLIC_SITE_URL=https://raihandaris.web.id
 ```
 
 `vercel.json`:
@@ -971,7 +1015,7 @@ Langkah:
 4. Pastikan bucket `note-files` publik + limit + mime sesuai §6.
 5. `npm run dev` → buka `localhost:3000`. Daftar kosong itu normal (empty state).
 6. Login `/admin/login`, tulis post pertama, publish.
-7. Deploy Vercel: isi semua env termasuk `CRON_SECRET`; `vercel.json` sudah menjadwalkan `0 3 * * *` ke `/api/cron/keep-supabase-alive`. Vercel Hobby hanya 1x/hari, zona UTC. Supabase free bisa pause setelah 7 hari inaktif; cron hanya best-effort, jaminan resmi hanya upgrade Pro.
+7. Deploy Vercel: isi semua env termasuk `CRON_SECRET`; `NEXT_PUBLIC_SITE_URL` production harus persis `https://raihandaris.web.id` tanpa slash di akhir. Saat `VERCEL_ENV=production`, build harus gagal dengan pesan jelas kalau nilainya kosong atau berbeda. Build lokal/CI non-production boleh memakai override preview. `vercel.json` sudah menjadwalkan `0 3 * * *` ke `/api/cron/keep-supabase-alive`. Vercel Hobby hanya 1x/hari, zona UTC. Supabase free bisa pause setelah 7 hari inaktif; cron hanya best-effort, jaminan resmi hanya upgrade Pro.
 
 Script `package.json`: `dev`, `build`, `start`, `lint`, `typecheck` (`tsc --noEmit`).
 
@@ -979,7 +1023,7 @@ Script `package.json`: `dev`, `build`, `start`, `lint`, `typecheck` (`tsc --noEm
 
 ## 14. Checklist
 
-- [ ] §1 diisi manusia, disimpan di `lib/site.ts` (tidak ada `ISI_DULU` tersisa)
+- [ ] §1 disimpan di `lib/site.ts`; kontak publik dapat diubah dari `/admin/settings`
 - [ ] Scaffold Next + TS + empat file Supabase client, env + `.env.example`
 - [ ] `setup.sql` dijalankan: tabel, partial unique index, check constraint, RLS, bucket, RPC
 - [ ] Policy tulis tidak ada; `service_role` hanya di server
@@ -995,10 +1039,12 @@ Script `package.json`: `dev`, `build`, `start`, `lint`, `typecheck` (`tsc --noEm
 - [ ] Auth single-admin + middleware/proxy + protected layout
 - [ ] Admin CRUD post (termasuk `project_id`) + proyek + gambar proyek
 - [ ] Upload lewat signed URL; form baru menyimpan draft lalu redirect ke edit
+- [ ] Race dua upload PDF ditolak index; upload yang gagal diregistrasi mencoba cleanup
 - [ ] Hapus post/proyek menghapus objek Storage sebelum row
 - [ ] Views internal di dashboard, tidak tampil publik
 - [ ] Halaman publik tetap render saat Supabase mati
 - [ ] SEO: sitemap, robots, metadata, OG
+- [ ] Build dengan `VERCEL_ENV=production` menolak URL selain `https://raihandaris.web.id`
 - [ ] `typecheck`, `lint`, `build` lolos
 - [ ] Lewati §10 sekali lagi
 
@@ -1010,7 +1056,9 @@ Hanya kalau database Supabase versi lama dipakai ulang. Catatan sebelum menjalan
 
 - `posts.slug` di v1 sudah `UNIQUE` global, jadi tidak ada risiko slug kembar, dan redirect `/blog/:course/:slug → /writing/:slug` aman selama slug tidak diubah.
 - `posts.course_slug` di v1 punya `DEFAULT 'data-warehouse'`. Default itu **harus dibuang**. Kalau tidak, post tanpa matkul yang tidak mengirim kolom itu akan terisi `'data-warehouse'` tanpa minggu dan langsung gagal di CHECK `posts_course_week_together`.
-- Nama constraint/policy lama tidak diketahui. Cek dulu (query di komentar SQL).
+- Nama constraint/policy lama tidak perlu ditebak: migrasi mencari constraint/index lama berdasarkan kolom dan mengganti semua policy tabel aplikasi secara deterministik. Query preflight tetap dijalankan untuk memahami kondisi awal.
+- Sebelum migrasi, query jumlah PDF per post. Kalau ada hasil dengan `count(*) > 1`, pilih satu file yang dipertahankan dan bersihkan sisanya sebelum membuat unique index. Jangan menghapus otomatis tanpa review.
+- Pastikan tidak ada row dengan hanya salah satu dari `course_slug`/`week_number` terisi. Perbaiki row tersebut secara manual sebelum menambahkan CHECK.
 
 ```sql
 -- supabase/migrations/20260920_v2_reshape.sql
@@ -1018,6 +1066,10 @@ Hanya kalau database Supabase versi lama dipakai ulang. Catatan sebelum menjalan
 --   select conname from pg_constraint where conrelid = 'posts'::regclass and contype = 'u';
 --   select indexname from pg_indexes where tablename = 'posts';
 --   select policyname from pg_policies where tablename = 'projects';
+--   select post_id, count(*) from post_files where file_type = 'pdf'
+--     group by post_id having count(*) > 1;
+--   select id, course_slug, week_number from posts
+--     where (course_slug is null) <> (week_number is null);
 
 begin;
 
@@ -1027,13 +1079,39 @@ alter table posts alter column course_slug drop default;
 alter table posts alter column week_number drop not null;
 alter table posts add column topics text[] not null default '{}';
 alter table posts add column project_id uuid references projects(id) on delete set null;
+alter table posts add column sort_at timestamptz
+  generated always as (coalesce(published_at, created_at)) stored;
 alter table posts drop column likes;
 drop function if exists increment_post_likes(uuid);
 
--- ganti UNIQUE(course_slug, week_number) dengan partial index.
--- Kalau query di atas menunjukkan namanya beda, sesuaikan; kalau ternyata
--- berupa unique index (bukan constraint), pakai: drop index <nama>;
-alter table posts drop constraint if exists posts_course_slug_week_number_key;
+-- Ganti UNIQUE(course_slug, week_number) lama tanpa bergantung pada namanya.
+do $$
+declare
+  constraint_row record;
+  index_row record;
+begin
+  for constraint_row in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.posts'::regclass
+      and contype = 'u'
+      and pg_get_constraintdef(oid) ~* '^UNIQUE \(course_slug, week_number\)'
+  loop
+    execute format('alter table public.posts drop constraint %I', constraint_row.conname);
+  end loop;
+
+  for index_row in
+    select schemaname, indexname
+    from pg_indexes
+    where schemaname = 'public'
+      and tablename = 'posts'
+      and indexdef ~* 'UNIQUE INDEX .+ \(course_slug, week_number\)'
+  loop
+    execute format('drop index if exists %I.%I', index_row.schemaname, index_row.indexname);
+  end loop;
+end;
+$$;
+
 create unique index posts_course_week_uniq
   on posts (course_slug, week_number)
   where course_slug is not null and week_number is not null;
@@ -1045,6 +1123,8 @@ alter table posts add constraint posts_course_week_together
   check ((course_slug is null) = (week_number is null));
 
 create index posts_project_id_idx on posts (project_id) where project_id is not null;
+create unique index post_files_one_pdf_per_post
+  on post_files (post_id) where file_type = 'pdf';
 
 -- projects
 alter table projects rename column description to summary;
@@ -1056,9 +1136,6 @@ alter table projects
   add column role text,
   add column period text;
 alter table projects alter column published set default false;
-
--- policy ALL for authenticated: isi nama dari query pg_policies di atas
--- drop policy "<nama>" on projects;
 
 -- project_images (sama dengan setup.sql)
 create table project_images (
@@ -1072,8 +1149,45 @@ create table project_images (
 );
 create index project_images_project_id_idx on project_images (project_id);
 alter table project_images enable row level security;
-revoke insert, update, delete on project_images from anon, authenticated;
-grant select on project_images to anon, authenticated;
+
+-- Hapus seluruh policy lama pada tabel aplikasi. Ini sengaja lebih tegas daripada
+-- bergantung pada nama policy v1 yang mungkin berbeda, lalu buat ulang read-only.
+do $$
+declare
+  policy_row record;
+begin
+  for policy_row in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('projects', 'posts', 'post_files', 'project_images')
+  loop
+    execute format(
+      'drop policy %I on %I.%I',
+      policy_row.policyname,
+      policy_row.schemaname,
+      policy_row.tablename
+    );
+  end loop;
+end;
+$$;
+
+alter table projects enable row level security;
+alter table posts enable row level security;
+alter table post_files enable row level security;
+
+revoke insert, update, delete on projects, posts, post_files, project_images
+  from anon, authenticated;
+grant select on projects, posts, post_files, project_images to anon, authenticated;
+
+create policy projects_read_published on projects
+  for select using (published = true);
+create policy posts_read_published on posts
+  for select using (published = true);
+create policy post_files_read_published on post_files
+  for select using (
+    exists (select 1 from posts p where p.id = post_files.post_id and p.published)
+  );
 create policy project_images_read_published on project_images
   for select using (
     exists (
@@ -1084,6 +1198,8 @@ create policy project_images_read_published on project_images
 
 commit;
 ```
+
+Migrasi di atas sengaja mengganti seluruh policy empat tabel aplikasi agar tidak ada policy tulis v1 yang tertinggal. Jalankan verifikasi sesudah commit: anon dapat membaca row published, tidak dapat membaca draft, dan role `anon` maupun `authenticated` tidak dapat insert/update/delete.
 
 Setelah konten proyek dipindah **manual** (jangan salin otomatis `long_description` ke satu field; blob itu justru yang mau dihindari, isi ulang ke `problem` / `approach` / `outcome`) dan gambar proyek diunggah ulang ke `project_images`:
 
@@ -1096,4 +1212,4 @@ alter table projects
 
 `summary` wajib `min 20` (§8.2), sedangkan `description` v1 cuma `min 10`. Proyek lama yang ringkasannya pendek akan ditolak Zod saat pertama kali diedit; perpanjang ringkasannya.
 
-Bagian lain dari `setup.sql` yang belum ada di database v1 (mis. `revoke insert, update, delete` dan fungsi `increment_post_views` yang dibatasi ke `service_role`) boleh diterapkan terpisah dari §6.
+Bucket, batas MIME/ukuran, dan fungsi `increment_post_views` yang dibatasi ke `service_role` dari §6 juga **wajib** diterapkan pada database v1 sebelum aplikasi production diarahkan ke database tersebut. Simpan sebagai migrasi lanjutan yang executable; jangan menjadikannya langkah manual tanpa rekaman.

@@ -1,0 +1,96 @@
+.editorShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .82fr);
+  gap: 28px;
+  align-items: start;
+}
+.editorSingle { grid-template-columns: minmax(0, 1fr); }
+
+.formFooter {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.fields { display: grid; min-width: 0; margin: 0; padding: 0; gap: 22px; border: 0; }
+.help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+.formFooter > button {
+  justify-self: start;
+  min-width: 170px;
+}
+
+.saveStatus,
+.staleActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 25px;
+  color: #555752;
+  font-size: 12px;
+}
+
+.staleActions { color: #9a411e; }
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #777;
+}
+
+.statussaving { background: #d49b1a; animation: pulse 1s ease-in-out infinite; }
+.statussaved { background: #3d7658; }
+.statuserror,
+.statusstale { background: #b1281e; }
+
+.inlineButton {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.preview {
+  display: none;
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+  overflow: hidden;
+  background: #f7f6f0;
+  border: 1px solid #d6d3c9;
+}
+.previewOpen { display: block; }
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  color: #555752;
+  background: #eae8df;
+  border-bottom: 1px solid #d6d3c9;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.preview :global(.measure) {
+  width: auto;
+  padding: 34px 28px;
+}
+
+.preview h1 { font-size: clamp(34px, 4vw, 52px); }
+.previewSummary { color: #555752; font-family: var(--font-reading); font-size: 16px; line-height: 1.65; }
+
+@media (max-width: 1100px) {
+  .editorShell { grid-template-columns: 1fr; }
+  .preview { display: none; position: static; }
+  .previewOpen { display: block; }
+}
