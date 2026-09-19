@@ -1,0 +1,106 @@
+.mobile-intro, .mobile-practice, .process-map, .mobile-process-intro { display: none; }
+.home-section.practice-section { padding-top: 0; padding-bottom: var(--section-space); }
+.now-section.now-after-process { margin-top: var(--section-space); }
+.now-section .text-link { margin-top: 24px; color: var(--acid); }
+#karya { scroll-margin-top: 24px; }
+
+.work-placeholder { display: flex; align-items: center; gap: 32px; padding: 32px; background: var(--surface); border: 1px solid var(--line); }
+.work-placeholder-mark { flex: 0 0 96px; display: grid; place-items: center; aspect-ratio: 1; background: var(--blue); color: var(--acid); font-size: 48px; }
+.work-placeholder strong { font-size: 22px; font-weight: 600; letter-spacing: -.025em; }
+.work-placeholder p { margin: 8px 0 16px; color: var(--muted); font-size: 15px; }
+
+.project-visual-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.project-visual-card { min-width: 0; border: 1px solid var(--line); background: var(--surface); }
+.project-visual-cover { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: #e4e5e1; border-bottom: 1px solid var(--line); }
+.project-visual-cover img { object-fit: cover; object-position: top; transition: transform 300ms; }
+.project-visual-card:hover img { transform: scale(1.025); }
+.project-cover-link { position: absolute; right: 16px; bottom: 16px; display: grid; place-items: center; width: 40px; height: 40px; background: var(--surface); color: var(--ink); border-radius: 50%; }
+.project-cover-fallback { height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 24px; color: var(--blue); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 40px 40px; }
+.project-cover-fallback > span:first-child { font-size: 72px; line-height: 1; letter-spacing: -.08em; }
+.project-cover-fallback > span:last-child { max-width: 70%; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.project-visual-copy { padding: 24px; }
+.project-visual-copy h3 { margin: 12px 0; font-size: 26px; line-height: 1.12; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.project-visual-copy p { margin: 0 0 20px; color: var(--muted); font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; }
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .project-visual-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .project-visual-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .project-visual-card:last-child:nth-child(odd) .project-visual-cover { aspect-ratio: 2; }
+}
+
+@media (max-width: 600px) {
+  .site-frame .site-header { gap: 12px; }
+  .site-header .site-nav { gap: 12px; }
+  .site-header .brand-copy { display: none; }
+  .site-header .brand-mark { width: 36px; height: 36px; font-size: 14px; }
+  .home-hero { position: relative; }
+  .site-main .home-hero { display: block; padding: 28px 0 36px; }
+  .home-hero .hero-copy .eyebrow { display: flex; flex-direction: column; justify-content: center; min-height: 76px; padding-right: 88px; margin-bottom: 22px; font-size: 10px; gap: 8px; }
+  .home-hero .hero-copy .eyebrow span + span { max-width: 170px; font-size: 9px; }
+  .home-hero .hero-copy h1 { font-size: clamp(34px, 9.6vw, 48px); }
+  .home-hero .hero-intro { max-width: 33ch; margin-top: 20px; font-size: 15px; line-height: 1.7; }
+  .desktop-intro { display: none; }
+  .mobile-intro { display: inline; }
+  .home-hero .hero-actions { margin-top: 22px; }
+  .home-hero .hero-secondary { display: none; }
+  .home-hero .hero-art { position: absolute; right: 0; top: 28px; width: 76px; aspect-ratio: 1; border-radius: 50%; }
+  .home-hero .art-monogram { font-size: 48px; }
+  .home-hero .art-grid, .home-hero .art-label, .home-hero .art-coordinate { display: none; }
+  .home-hero .orbit-two::after { width: 5px; height: 5px; top: 2px; left: 6px; }
+  .site-main .marquee-band { padding-block: 12px; }
+  .site-main .marquee-band div { font-size: 9px; word-spacing: 16px; }
+  .home-section.featured-section { padding-block: 40px 48px; }
+  .home-section .section-kicker { display: block; padding-top: 14px; }
+  .home-section .section-kicker p { display: none; }
+  .home-section .section-title-row { margin: 18px 0 24px; }
+  .home-section .section-title-row h2 { font-size: 32px; }
+  .home-section .circle-link { width: 42px; height: 42px; font-size: 21px; }
+  .work-placeholder { align-items: flex-start; padding: 22px 18px; gap: 18px; }
+  .work-placeholder-mark { flex-basis: 48px; font-size: 28px; }
+  .work-placeholder strong { display: block; font-size: 18px; line-height: 1.3; }
+  .work-placeholder p { font-size: 13px; margin: 8px 0 12px; }
+  .work-placeholder .text-link { font-size: 12px; }
+  .project-visual-list { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; padding: 4px 4px 16px; margin-inline: -4px; scrollbar-width: thin; scrollbar-color: var(--blue) var(--line); }
+  .project-visual-card { flex: 0 0 88%; scroll-snap-align: start; }
+  .project-visual-card:only-child { flex-basis: 100%; }
+  .project-visual-list .project-visual-card .project-visual-cover { aspect-ratio: 4 / 3; }
+  .project-visual-copy { padding: 20px; }
+  .project-visual-copy h3 { font-size: 23px; }
+  .project-visual-copy p { font-size: 14px; }
+  .desktop-practice.practice-grid { display: none; }
+  .mobile-practice { display: block; border-top: 1px solid var(--line); }
+  .mobile-practice details { border-bottom: 1px solid var(--line); }
+  .mobile-practice summary { display: flex; align-items: center; gap: 16px; min-height: 86px; cursor: pointer; list-style: none; }
+  .mobile-practice summary::-webkit-details-marker { display: none; }
+  .focus-number { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border: 1px solid var(--line); color: var(--blue); font-size: 11px; }
+  .mobile-practice summary small { display: block; color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+  .mobile-practice summary strong { display: block; font-weight: 600; font-size: 17px; letter-spacing: -.025em; }
+  .focus-toggle { margin-left: auto; color: var(--blue); font-size: 24px; transition: transform 180ms; }
+  .mobile-practice details[open] .focus-toggle { transform: rotate(45deg); }
+  .mobile-practice details > div { padding: 0 0 22px 52px; }
+  .mobile-practice p { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.75; }
+  .mobile-practice div > small { color: var(--blue); font-size: 10px; }
+  .home-section.practice-section { padding-bottom: 48px; }
+  .site-main .process-section { padding: 30px 22px; gap: 24px; }
+  .process-section .process-heading h2 { font-size: clamp(29px, 8vw, 36px); }
+  .process-section .eyebrow { margin-bottom: 18px; }
+  .process-section .desktop-process-intro, .process-section .process-list { display: none; }
+  .process-section .process-heading .mobile-process-intro { display: block; margin-top: 18px; font-size: 13px; }
+  .process-map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; border-top: 1px solid #7089ff; border-left: 1px solid #7089ff; }
+  .process-map li { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 18px 14px; border-right: 1px solid #7089ff; border-bottom: 1px solid #7089ff; }
+  .process-map li > span { display: flex; justify-content: space-between; margin-bottom: 16px; color: var(--acid); font-size: 10px; }
+  .process-map i { font-size: 15px; font-style: normal; }
+  .process-map strong { font-weight: 600; font-size: 19px; }
+  .process-map small { color: #dce2ff; font-size: 10px; }
+  .home-section.writing-section { padding-block: 48px; }
+  .writing-section .section-title-row h2 { margin-bottom: 16px; }
+  .writing-section .post-row { padding-block: 24px; }
+  .writing-section .post-row p { display: none; }
+  .site-main .now-section { gap: 22px; margin-bottom: 48px; padding: 30px 22px; }
+  .site-main .now-after-process { margin-top: 48px; }
+  .site-main .now-section h2 { font-size: 34px; }
+  .site-main .now-section div > p { font-size: 14px; margin-top: 20px; }
+  .now-section .now-index { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .now-section .now-index span { padding: 6px 9px; border: 1px solid #44453f; font-size: 8px; }
+  .site-main .contact-section { padding-block: 48px; }
+}
